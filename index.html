@@ -16,6 +16,7 @@
     <script type="text/javascript" src="./ObjetoMovible.js"></script>
     <script type="text/javascript" src="./Asteroide.js"></script>
     <script type="text/javascript" src="./Nave.js"></script>
+    <script type="text/javascript" src="./Bala.js"></script>
 
 
 </head>
@@ -31,6 +32,9 @@
     Physijs.scripts.ammo = '../js/ammo.js';
 
     var initScene, render, renderer, scene, camera, box;
+    var naveMaterial = new THREE.MeshBasicMaterial({color: 0x000000, wireframe: true});
+    var nave = new Nave();
+    var box = new Asteroide();
 
     function createRender(){
 
@@ -42,34 +46,6 @@
         return renderer;
     }
 
-    function getRandomInt(min, max) {
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
-
-    function radianes(grados) {
-        return grados * Math.PI / 180;
-    }
-
-    function createAsteroide(){
-
-        var squareGeometry = new THREE.CubeGeometry();  
-        for (var i = 0; i <= 360; i += getRandomInt(30, 45)) {
-            var d = getRandomInt(1.0, 10);
-            squareGeometry.vertices.push(new THREE.Vector3( d * Math.cos(radianes(i)), d * Math.sin(radianes(i)), 0.0))
-        }
-        squareGeometry.vertices.push(new THREE.Vector3( 0.0, 0.0, 0.0));
-        
-        for (var i = 1; i < squareGeometry.vertices.length; i++) {
-            squareGeometry.faces.push(new THREE.Face3(squareGeometry.vertices.length-1 , i, (i + 1)%squareGeometry.vertices.length ));
-        }
-        return new Physijs.ConcaveMesh(
-            squareGeometry,
-            new THREE.MeshBasicMaterial({color: 0x000000, wireframe: true}),
-            10
-        );
-    }
-
-
     initScene = function() {
         renderer = createRender();
         document.getElementById( 'viewport' ).appendChild( renderer.domElement );
@@ -80,65 +56,76 @@
             scene.simulate();
         });
 
-        camera = new THREE.PerspectiveCamera(
+        /*camera = new THREE.PerspectiveCamera(
             35,
             window.innerWidth / window.innerHeight,
             1,
             1000
         );
-        camera.position.set( 0, 0, 60 );
+        camera.position.set( 0, 0, 200 );
+        */
+        camera = new THREE.OrthographicCamera(
+            window.innerWidth / - 2, 
+            window.innerWidth / 2, 
+            window.innerHeight / 2, 
+            window.innerHeight / - 2, 
+            - 500, 
+            1000
+        );
+
         camera.lookAt( scene.position );
         scene.add( camera );
-
-        box = new Asteroide();
         
         box.position.y = 20;
 
-        var surface = new Physijs.BoxMesh(
-            new THREE.CubeGeometry( 10, 1, 10 ),
-            new THREE.MeshBasicMaterial({ color: 0x888888 }),
-            0
-        );
-        surface.name = "surface";
-        surface.addEventListener( 'collision', function( other_object, linear_velocity, angular_velocity ) {
+        var bala = new Bala();
+        bala.position.y = 30;
+        bala.position.z = -0.5;
 
-            console.log("hemos chocado");
-            other_object.material.color.setHex( 0xffffff );
-            var selectedObject = scene.getObjectByName("surface");
-            scene.remove(selectedObject);
-            box.impulsar(100, 100, 0);
+        bala.name = "bala";
+        nave.name = "nave";
+        box.name = "asteroide";
+        nave.addEventListener( 'collision', function( other_object, linear_velocity, angular_velocity ) {
+
+            //console.log(nave.name + " " + other_object.name);
+            other_object.material.color.setHex( 0xff0000 );
         });
+        bala.addEventListener( 'collision', function( other_object, linear_velocity, angular_velocity ) {
 
-        var nave = new Nave();
-        nave.position.x = -20;
+            //console.log(bala.name + " " + other_object.name);
+            other_object.material.color.setHex( 0xff0000 );
+        });
+        /*box.addEventListener( 'collision', function( other_object, linear_velocity, angular_velocity ) {
 
+            console.log(box.name + " " + other_object.name);
+            other_object.material.color.setHex( 0xff0000 );
+        });*/
+        
         document.addEventListener('keydown', function(event) {
-            if(event.keyCode == 37) {
-                nave.position.x -= 1;
+            if(event.keyCode == 37) { //izquierda
+                nave.rotation.z += 0.11;
             }
-            else if(event.keyCode == 39) {
-                nave.position.x += 1;
-                nave.reactor.material.opacity = 1.0;
+            else if(event.keyCode == 39) { //derecha
+                nave.rotation.z -= 0.11;
+                //console.log(nave.rotation.z);
             }
-            else if(event.keyCode == 38) {
-                nave.rotation.z += 0.1;
+            else if(event.keyCode == 38) { //arriba
+                nave.position.x -= 3*Math.sin(nave.rotation.z);
+                nave.position.y += 3*Math.cos(nave.rotation.z);
             }
-        });
-
-        document.addEventListener('keyup', function(event) {
-            if(event.keyCode == 37) {
-            }
-            else if(event.keyCode == 39) {
-                nave.reactor.material.opacity = 0.0;
-            }
-            else if(event.keyCode == 38) {
+            else if(event.keyCode == 32) { //espacio
+                nave.disparar(scene);
             }
         });
 
         scene.add(nave);
-        scene.add( surface );
-        scene.add( box );
-        box.impulsar(0, -100, 0);
+        //scene.add(box);
+        //scene.add(bala);
+
+        bala.setCcdMotionThreshold(1);
+        bala.setCcdSweptSphereRadius(0.2);
+        bala.applyCentralImpulse(new THREE.Vector3(0, -100, 0));
+        box.applyCentralImpulse(new THREE.Vector3(0, -100, 0));
         //var controls = new THREE.OrbitControls( camera );
         requestAnimationFrame( render );
     };
@@ -146,6 +133,8 @@
     render = function() {
         scene.simulate(); // run physics
         renderer.render( scene, camera); // render the scene
+        nave.__dirtyPosition = true;
+        nave.__dirtyRotation = true;
         requestAnimationFrame( render );
     };
 

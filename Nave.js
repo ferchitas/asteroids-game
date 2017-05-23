@@ -1,27 +1,43 @@
+var naveMaterial = new THREE.MeshBasicMaterial({color: 0xff0000});
+var naveGeometry = new THREE.ConeGeometry(25, 125, 3);
+
 function Nave (){
 
-	ObjetoMovible.call (this);
+	Physijs.SphereMesh.call (this, naveGeometry, naveMaterial,0);
 
-	var naveMaterial = new THREE.MeshBasicMaterial({color: 0x000000, wireframe: true});
-	var naveGeometry = new THREE.Geometry(); 
-	naveGeometry.vertices.push(new THREE.Vector3( 0.0,  0.0, 0.0));
-	naveGeometry.vertices.push(new THREE.Vector3(5.0, 0.0, 0.0));
-	naveGeometry.vertices.push(new THREE.Vector3(-3.0, -3.0, 0.0));
-	naveGeometry.vertices.push(new THREE.Vector3(-3.0, 3.0, 0.0));
-	naveGeometry.faces.push(new THREE.Face3(0, 1, 2));
-	naveGeometry.faces.push(new THREE.Face3(0, 3, 1));
+	this.balas = new Array();
+	this.nave = new Physijs.SphereMesh(
+        naveGeometry,
+        naveMaterial,
+        10
+    );
 
-	var reactorMaterial = new THREE.MeshLambertMaterial({color: 0x000000, wireframe: true, transparent: true});
-	reactorMaterial.opacity = 0.0;
-	var reactorGeometry = new THREE.Geometry(); 
-	reactorGeometry.vertices.push(new THREE.Vector3(-1.50, 1.50, 0.0));
-	reactorGeometry.vertices.push(new THREE.Vector3(-1.50, -1.50, 0.0));
-	reactorGeometry.vertices.push(new THREE.Vector3(-5.0, 0.0, 0.0));
-	reactorGeometry.faces.push(new THREE.Face3(0, 1, 2));
+    this.disparar = function (scene) {
+    	//creamos la bala
+    	var bala = new Bala();
+    	//la nombramos en orden para tenerlas controladas
+    	bala.name = "bala " + (this.balas.length + 1);
+    	//le ponemos la misma posicion que la nave
+    	bala.position.set(
+    		this.position.x - (76 * Math.sin(this.rotation.z)), 
+    		this.position.y + (76 * Math.cos(this.rotation.z)), 
+    		this.position.z);
+    	bala.rotation.set(this.rotation.x, this.rotation.y, this.rotation.z);
 
-	this.reactor = new THREE.Mesh(reactorGeometry, reactorMaterial)
-	this.add(this.reactor);
-	this.add(new THREE.Mesh(naveGeometry, naveMaterial));
+    	//le damos el impulso
+    	console.log(1000000 * Math.sin(this.rotation.z) + " " + 100000 * Math.cos(this.rotation.z))
+    	//la añadimos a la escena
+    	scene.add(bala);
+    	//y la metemos en el array de balas
+    	this.balas.push(bala);
+    	bala.applyCentralForce(new THREE.Vector3(-(10000000 * Math.sin(this.rotation.z)), 10000000 * Math.cos(this.rotation.z),0));
+
+    }
+
+    this.impulsar = function( x, y, z ){
+
+		this.applyCentralForce(new THREE.Vector3(x, y, z));
+	}
 }
 
-Nave.prototype = new ObjetoMovible();
+Nave.prototype = new Physijs.SphereMesh(naveGeometry, naveMaterial);
