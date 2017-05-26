@@ -14,7 +14,7 @@ var squareGeometry = new THREE.CubeGeometry();
 var radio = 0;
 var pos0 = new THREE.Vector3(0, 0, 0);
 for (var i = 0; i <= 360; i += getRandomInt(30, 45)) {
-    var d = getRandomInt(5.0, 10);
+    var d = getRandomInt(20, 35);
     var nuevoPunto = new THREE.Vector3( d * Math.cos(radianes(i)), d * Math.sin(radianes(i)), 0.0);
     squareGeometry.vertices.push(nuevoPunto);
     if(pos0.distanceTo(nuevoPunto)>radio) radio = pos0.distanceTo(nuevoPunto);

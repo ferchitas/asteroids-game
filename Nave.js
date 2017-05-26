@@ -12,7 +12,11 @@ function Nave (){
         10
     );
 
-    this.disparar = function (scene) {
+    function sleep(ms) {
+	  return new Promise(resolve => setTimeout(resolve, ms));
+	}
+
+    this.disparar = async function (scene) {
     	//creamos la bala
     	var bala = new Bala();
     	//la nombramos en orden para tenerlas controladas
@@ -23,15 +27,13 @@ function Nave (){
     		this.position.y + (76 * Math.cos(this.rotation.z)), 
     		this.position.z);
     	bala.rotation.set(this.rotation.x, this.rotation.y, this.rotation.z);
-
-    	//le damos el impulso
-    	console.log(1000000 * Math.sin(this.rotation.z) + " " + 100000 * Math.cos(this.rotation.z))
     	//la añadimos a la escena
     	scene.add(bala);
     	//y la metemos en el array de balas
     	this.balas.push(bala);
+    	//le damos el impulso
     	bala.applyCentralForce(new THREE.Vector3(-(10000000 * Math.sin(this.rotation.z)), 10000000 * Math.cos(this.rotation.z),0));
-
+    	await sleep(2000);
     }
 
     this.impulsar = function( x, y, z ){
