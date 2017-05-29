@@ -5,10 +5,9 @@
 <title>Physijs</title>
         <meta charset=utf-8>
         <style>
-            body { margin: 0; }
-            canvas { width: 100%; height: 100% }
+            body {overflow: hidden;}
+            div {position: absolute; top: 0; right: 0; bottom: 0; left: 0;}
         </style>
-
     <script type="text/javascript" src="../js/three.js"></script>
     <script type="text/javascript" src="../js/physi.js"></script>
     <script type="text/javascript" src="../js/OrbitControls.js"></script>
@@ -17,12 +16,15 @@
     <script type="text/javascript" src="./Asteroide.js"></script>
     <script type="text/javascript" src="./Nave.js"></script>
     <script type="text/javascript" src="./Bala.js"></script>
-
+    <script type="text/javascript" src="./Partida.js"></script>
+    <script type="text/javascript" src="./Ovni.js"></script>
+    <script type="text/javascript" src="./Cascote.js"></script>
 
 </head>
 
 <body>
     <div id="viewport"></div>
+
 
 <script type="text/javascript">
 
@@ -31,10 +33,10 @@
     Physijs.scripts.worker = '../js/physijs_worker.js';
     Physijs.scripts.ammo = '../js/ammo.js';
 
-    var initScene, render, renderer, scene, camera, box;
-    var naveMaterial = new THREE.MeshBasicMaterial({color: 0x000000, wireframe: true});
-    var nave = new Nave();
-    var box = new Asteroide();
+    var initScene, render, renderer, scene, camera, asteroide;
+    var partida = new Partida();
+    var numeroInicialAsteroides = 3;
+    var numeroInicialOvnis = 1;
 
     function createRender(){
 
@@ -42,28 +44,49 @@
         var renderer = new THREE.WebGLRenderer();
         renderer.setClearColor(0xEEEEEE, 1.0);
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMapEnabled = true;
         return renderer;
     }
 
-    initScene = function() {
-        renderer = createRender();
-        document.getElementById( 'viewport' ).appendChild( renderer.domElement );
+    function initScoreBoard() {
+      var text = document.createElement('div');
+      text.id = 'scoreboard';
+      text.style.position = 'absolute';
+      //text.style.backgroundColor = 'white';
+      text.style.borderRadius = "5px";
+      text.style.padding = "10px 10px";
+      text.style.left = "5px";
+      text.style.top = "7px";
+      text.style.height = "100px";
+      text.style.width = "200px";
+      document.body.appendChild(text);
 
+      writeScoreBoard(
+            '- Flechas para moverse' +
+            '<br/>' +
+            '- Espacio para disparar'
+          );
+    }
+    function pintarMarcador(vidas, puntos) {
+        var textoMarcador = '- Vidas: ' + vidas + '<br/>' + '- Puntos: ' + puntos;
+        writeScoreBoard(textoMarcador)
+    }
+
+    function writeScoreBoard(message) {
+      var text = document.getElementById('scoreboard');
+      text.innerHTML = message;
+    }
+
+    function crearEscena() {
+        
         scene = new Physijs.Scene;
-        scene.setGravity(new THREE.Vector3(0,0,0));  
+        scene.setGravity(new THREE.Vector3(0, 0, 0));  
         scene.addEventListener('update', function() {
             scene.simulate();
         });
+    }
 
-        /*camera = new THREE.PerspectiveCamera(
-            35,
-            window.innerWidth / window.innerHeight,
-            1,
-            1000
-        );
-        camera.position.set( 0, 0, 200 );
-        */
+    function crearCamara() {
+        
         camera = new THREE.OrthographicCamera(
             window.innerWidth / - 2, 
             window.innerWidth / 2, 
@@ -72,70 +95,131 @@
             - 500, 
             1000
         );
-
+        camera.name = "camara";
         camera.lookAt( scene.position );
         scene.add( camera );
+    }
+
+    function iniciarPartida(asterodes, ovnis) {
+        partida.crearAsteroides(scene, asterodes);
+        partida.crearParedes(scene);
+        partida.crearOvnis(scene, ovnis);
+        scene.add(partida.nave);
+        initScoreBoard();
+        pintarMarcador(partida.nave.vidas, partida.puntuacion);
+    }
+
+    initScene = function() {
+        renderer = createRender();
+        document.getElementById( 'viewport' ).appendChild( renderer.domElement );
+
+        crearEscena();
+        crearCamara();
+        iniciarPartida(6, 2);
         
-        box.position.y = 20;
+     
+        //colisiones de la nave
+        partida.nave.addEventListener( 'collision', function( other_object, linear_velocity, angular_velocity ) {
 
-        var bala = new Bala();
-        bala.position.y = 30;
-        bala.position.z = -0.5;
+            if(other_object instanceof Ovni || other_object instanceof Asteroide){
+                var vidasRestantes = partida.nave.quitarVida();
+                pintarMarcador(partida.nave.vidas, partida.puntuacion);
+                if(!vidasRestantes){
 
-        bala.name = "bala";
-        nave.name = "nave";
-        box.name = "asteroide";
-        nave.addEventListener( 'collision', function( other_object, linear_velocity, angular_velocity ) {
-
-            //console.log(nave.name + " " + other_object.name);
-            other_object.material.color.setHex( 0xff0000 );
+                    //window.location.href = "http://127.0.0.1:8000/finPartida.html";
+                }
+                console.log(partida.cascotes.length);
+            }
         });
-        bala.addEventListener( 'collision', function( other_object, linear_velocity, angular_velocity ) {
+        //colisiones con las paredes
+        partida.paredes.forEach(function (valor, indice, array) {
+            
+            valor.addEventListener( 'collision', function( other_object, linear_velocity, angular_velocity ) {
 
-            //console.log(bala.name + " " + other_object.name);
-            other_object.material.color.setHex( 0xff0000 );
+                if(other_object instanceof Ovni || other_object instanceof Asteroide){
+                    other_object.setLinearVelocity(new THREE.Vector3(Math.cos(other_object.rotation.z) * 50 ,
+                        Math.sin(other_object.rotation.z) * 50, 
+                        0));
+                }
+                if(other_object instanceof Bala){
+                    partida.quitarBala(scene, other_object);
+                }
+            });
         });
-        /*box.addEventListener( 'collision', function( other_object, linear_velocity, angular_velocity ) {
+        partida.ovnis.forEach(function (valor, indice, array) {
 
-            console.log(box.name + " " + other_object.name);
-            other_object.material.color.setHex( 0xff0000 );
-        });*/
-        
+            valor.addEventListener( 'collision', function( other_object, linear_velocity, angular_velocity ) {
+
+                if(other_object instanceof Bala){
+                    partida.quitarOvni(scene, valor, indice);
+                    partida.quitarBala(scene, other_object);
+                    partida.puntuacion += 70;
+                    pintarMarcador(partida.nave.vidas, partida.puntuacion);
+                }
+            });
+        });
+
+        partida.asteroidesNuevos.forEach(function (valor, indice, array) {
+           
+           valor.addEventListener( 'collision', function( other_object, linear_velocity, angular_velocity ) {
+
+                if(other_object instanceof Bala){
+                    partida.quitarBala(scene, other_object);
+                    partida.quitarAsteroide(scene, valor, indice);
+                    partida.crearCascotes(scene, valor);     
+                    partida.puntuacion += 50;
+                    pintarMarcador(partida.nave.vidas, partida.puntuacion);
+                    console.log(partida.cascotes.length);
+                }
+            }); 
+        });
+
+        partida.cascotes.forEach(function (valor, indice, array) {
+            valor.addEventListener( 'collision', function( other_object, linear_velocity, angular_velocity ) {
+
+                console.log("esto funciona");
+                if(other_object instanceof Bala){
+                    partida.quitarCascote(scene, valor);
+                    partida.quitarBala(scene, other_object);
+                    partida.puntuacion += 150;
+                    pintarMarcador(partida.nave.vidas, partida.puntuacion);
+                }
+            });
+        });
+
         document.addEventListener('keydown', function(event) {
             if(event.keyCode == 37) { //izquierda
-                nave.rotation.z += 0.11;
+                partida.nave.rotation.z += 0.11;
             }
             else if(event.keyCode == 39) { //derecha
-                nave.rotation.z -= 0.11;
-                //console.log(nave.rotation.z);
+                partida.nave.rotation.z -= 0.11;
+
             }
             else if(event.keyCode == 38) { //arriba
-                nave.position.x -= 3*Math.sin(nave.rotation.z);
-                nave.position.y += 3*Math.cos(nave.rotation.z);
+                partida.nave.setLinearVelocity(new THREE.Vector3(- (100*Math.sin(partida.nave.rotation.z)), 100*Math.cos(partida.nave.rotation.z), 0));
             }
             else if(event.keyCode == 32) { //espacio
-                nave.disparar(scene);
+                partida.nave.disparar(scene);
             }
         });
 
-        scene.add(nave);
-        //scene.add(box);
-        //scene.add(bala);
-
-        bala.setCcdMotionThreshold(1);
-        bala.setCcdSweptSphereRadius(0.2);
-        bala.applyCentralImpulse(new THREE.Vector3(0, -100, 0));
-        box.applyCentralImpulse(new THREE.Vector3(0, -100, 0));
+        document.addEventListener('keyup', function(event) {
+            
+            if(event.keyCode == 38) { //arriba
+                partida.nave.applyCentralImpulse(new THREE.Vector3((900*Math.sin(partida.nave.rotation.z)), -900*Math.cos(partida.nave.rotation.z), 0));
+            }
+        });
         //var controls = new THREE.OrbitControls( camera );
         requestAnimationFrame( render );
     };
 
     render = function() {
+        
         scene.simulate(); // run physics
+        partida.nave.__dirtyRotation = true;
         renderer.render( scene, camera); // render the scene
-        nave.__dirtyPosition = true;
-        nave.__dirtyRotation = true;
         requestAnimationFrame( render );
+
     };
 
     window.onload = initScene();
