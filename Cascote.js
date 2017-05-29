@@ -5,7 +5,7 @@ function getRandomInt(min, max) {
 function radianes(grados) {
     return grados * Math.PI / 180;
 }
-var cascoteMaterial = new THREE.MeshBasicMaterial({color: 0x0000ff});
+var cascoteMaterial = new THREE.MeshBasicMaterial({color: 0x0000ff, wireframe: true});
 var cascoteGeometry = new THREE.CubeGeometry();  
 
 //bucle que genera los puntos arrededor de un punto inicial , cada uno de estos puntos tiene una distancia al centro distinta
